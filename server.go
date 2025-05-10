@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -43,6 +44,7 @@ func (this *Server) ListenMsg() {
 	}
 }
 
+// 每个用户客户端的handler，由goroutine异步调用
 func (this *Server) Handler(conn net.Conn) {
 	// 当前连接的业务
 	//fmt.Println("连接建立成功...")
@@ -56,6 +58,27 @@ func (this *Server) Handler(conn net.Conn) {
 	// 广播当前用户上线的消息
 	this.Broadcast(user, "已上线")
 
+	// 接受客户端发送的消息
+	go func() {
+		buffer := make([]byte, 4096)
+		for {
+			// net.Conn对象的Read方法接受一个字节数组，返回值n是实际读取的字节数
+			n, err := conn.Read(buffer)
+			if n == 0 {
+				this.Broadcast(user, "已经下线")
+				return
+			}
+			if err != nil && err != io.EOF {
+				fmt.Println("Conn Read error", err)
+				return
+			}
+			// 提取用户信息
+			msg := string(buffer[:n])
+			// 广播信息
+			this.Msg <- msg
+		}
+
+	}()
 	// 当前handler阻塞
 	select {}
 }
