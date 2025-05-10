@@ -48,15 +48,10 @@ func (this *Server) ListenMsg() {
 func (this *Server) Handler(conn net.Conn) {
 	// 当前连接的业务
 	//fmt.Println("连接建立成功...")
-	user := NewUser(conn)
+	user := NewUser(conn, this)
 
 	// 用户上线，将用户加入到OnlineMap中
-	this.mapLock.Lock()
-	this.OnlineMap[user.Name] = user
-	this.mapLock.Unlock()
-
-	// 广播当前用户上线的消息
-	this.Broadcast(user, "已上线")
+	user.Online()
 
 	// 接受客户端发送的消息
 	go func() {
@@ -65,7 +60,7 @@ func (this *Server) Handler(conn net.Conn) {
 			// net.Conn对象的Read方法接受一个字节数组，返回值n是实际读取的字节数
 			n, err := conn.Read(buffer)
 			if n == 0 {
-				this.Broadcast(user, "已经下线")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -74,8 +69,9 @@ func (this *Server) Handler(conn net.Conn) {
 			}
 			// 提取用户信息
 			msg := string(buffer[:n])
-			// 广播信息
-			this.Msg <- msg
+
+			// 处理消息
+			user.DoMessage(msg)
 		}
 
 	}()
