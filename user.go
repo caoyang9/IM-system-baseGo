@@ -34,9 +34,24 @@ func (this *User) Offline() {
 	this.server.Broadcast(this, "离线")
 }
 
+func (this *User) SendMsg(msg string) {
+	this.conn.Write([]byte(msg))
+}
+
 // 用户消息处理
 func (this *User) DoMessage(msg string) {
-	this.server.Broadcast(this, msg)
+	if msg == "im online\n" {
+		// 查询当前所有在线用户
+		this.server.mapLock.Lock()
+		for _, user := range this.server.OnlineMap {
+			onlineMsg := "[" + user.Addr + "]" + ":" + "在线...\n"
+			// 写到当前用户的channel
+			this.SendMsg(onlineMsg)
+		}
+		this.server.mapLock.Unlock()
+	} else {
+		this.server.Broadcast(this, msg)
+	}
 }
 
 // 创建一个客户端用户实体
